@@ -7,20 +7,24 @@ import (
 )
 
 type (
+	// ConnectionPool interface
 	ConnectionPool interface {
 		GetConnection() (Connection, error)
 		ReturnConnection(connection Connection)
 	}
 
+	// Connection interface
 	Connection interface {
 		Close() error
 	}
 
+	// Pool options
 	Options struct {
 		ConnectionWaitTimeout int
 		NumConnections        int
 	}
-	
+
+	// Implementation of ConnectionPool
 	DefaultConnectionPool struct {
 		mutex                 sync.Mutex
 		connectionPool        []Connection
@@ -33,6 +37,7 @@ type (
 	}
 )
 
+// Initializes the connection pool
 func InitializeConnectionPool(options Options, initialize func() (Connection, error)) (ConnectionPool, error) {
 	var pool []Connection
 	// Get connection channel
@@ -55,6 +60,7 @@ func InitializeConnectionPool(options Options, initialize func() (Connection, er
 	}, nil
 }
 
+// Gets a single connection from the pool
 func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	// Default Timeout
 	timer := time.NewTimer(time.Duration(d.ConnectionWaitTimeout) * time.Millisecond)
@@ -72,12 +78,24 @@ func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	}
 }
 
+// Returns a connection to the pool
 func (d *DefaultConnectionPool) ReturnConnection(connection Connection) {
 	// Lock Mutex
 	d.mutex.Lock()
 	// Return connection to pool
 	d.connectionPool = append(d.connectionPool, connection)
-	//fmt.Printf("+ Pool Size: [%d]\n", len(d.connectionPool))
+	// Unlock Mutex
+	d.mutex.Unlock()
+}
+
+// Closes all connections in the pool
+func (d *DefaultConnectionPool) Close() {
+	// Lock Mutex
+	d.mutex.Lock()
+	// Return connection to pool
+	for _, conn := range d.connectionPool {
+		 _ = conn.Close()
+	}
 	// Unlock Mutex
 	d.mutex.Unlock()
 }
@@ -129,7 +147,6 @@ func waitForConnection(pool *DefaultConnectionPool, cancel chan int, response ch
 				response <- pool.connectionPool[0]
 				// Remove connection from pool
 				pool.connectionPool = remove(pool.connectionPool, 0)
-				//fmt.Printf("- Pool Size: [%d]\n", len(pool.connectionPool))
 				// Exit over iteration
 				exit = true
 			}

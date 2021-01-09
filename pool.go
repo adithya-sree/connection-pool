@@ -13,7 +13,7 @@ type (
 		GetConnection() (Connection, error)
 
 		// Returns a connection back to the pool
-		ReturnConnection(connection Connection)
+		ReturnConnection(Connection)
 
 		// Returns the current pool size
 		GetConnectionPoolSize() int

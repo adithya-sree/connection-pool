@@ -118,7 +118,7 @@ func (d *DefaultConnectionPool) Close() {
 
 func initializeConnections(options Options, initialize func() (Connection, error)) <-chan connectionResponse  {
 	// Create connection channel
-	c := make(chan connectionResponse, 1)
+	c := make(chan connectionResponse, options.NumConnections)
 	// Initialize connections
 	for i := 0; i < options.NumConnections; i++ {
 		// Initialize individual connection

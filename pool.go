@@ -9,8 +9,17 @@ import (
 type (
 	// ConnectionPool interface
 	ConnectionPool interface {
+		// Returns a connection from the pool
 		GetConnection() (Connection, error)
+
+		// Returns a connection back to the pool
 		ReturnConnection(connection Connection)
+
+		// Returns the current pool size
+		GetConnectionPoolSize() int
+
+		// Closes all connections in the pool & clears pool
+		Close()
 	}
 
 	// Connection interface
@@ -28,7 +37,7 @@ type (
 	DefaultConnectionPool struct {
 		mutex                 sync.Mutex
 		connectionPool        []Connection
-		ConnectionWaitTimeout int
+		connectionWaitTimeout int
 	}
 
 	connectionResponse struct {
@@ -56,14 +65,14 @@ func InitializeConnectionPool(options Options, initialize func() (Connection, er
 	return &DefaultConnectionPool{
 		mutex:                 sync.Mutex{},
 		connectionPool:        pool,
-		ConnectionWaitTimeout: options.ConnectionWaitTimeout,
+		connectionWaitTimeout: options.ConnectionWaitTimeout,
 	}, nil
 }
 
 // Gets a single connection from the pool
 func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	// Default Timeout
-	timer := time.NewTimer(time.Duration(d.ConnectionWaitTimeout) * time.Millisecond)
+	timer := time.NewTimer(time.Duration(d.connectionWaitTimeout) * time.Millisecond)
 	cancel := make(chan int, 1)
 	// Waits to either receive a connection or to timeout
 	select {
@@ -88,14 +97,21 @@ func (d *DefaultConnectionPool) ReturnConnection(connection Connection) {
 	d.mutex.Unlock()
 }
 
+// Returns the current pool size
+func (d *DefaultConnectionPool) GetConnectionPoolSize() int {
+	return len(d.connectionPool)
+}
+
 // Closes all connections in the pool
 func (d *DefaultConnectionPool) Close() {
 	// Lock Mutex
 	d.mutex.Lock()
-	// Return connection to pool
+	// Close each connection
 	for _, conn := range d.connectionPool {
 		 _ = conn.Close()
 	}
+	// Empty Pool
+	d.connectionPool = nil
 	// Unlock Mutex
 	d.mutex.Unlock()
 }

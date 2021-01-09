@@ -53,7 +53,7 @@ func InitializeConnectionPool(options Options, initialize func() (Connection, er
 	c := initializeConnections(options, initialize)
 	// Initialize all connections
 	for i := 0; i < options.NumConnections; i++ {
-		if resp := <- c; resp.error != nil {
+		if resp := <-c; resp.error != nil {
 			// Return error if unable to initialize
 			return nil, resp.error
 		} else {
@@ -78,11 +78,11 @@ func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	select {
 	// if timeout is reached, send cancel signal
 	// on cancel channel and return error
-	case <- timer.C:
+	case <-timer.C:
 		cancel <- 0
 		return nil, errors.New("timed out waiting for connection")
 	// If connection is received, return connection from pool
-	case conn := <- getConnection(d, cancel):
+	case conn := <-getConnection(d, cancel):
 		return conn, nil
 	}
 }
@@ -108,7 +108,7 @@ func (d *DefaultConnectionPool) Close() {
 	d.mutex.Lock()
 	// Close each connection
 	for _, conn := range d.connectionPool {
-		 _ = conn.Close()
+		_ = conn.Close()
 	}
 	// Empty Pool
 	d.connectionPool = nil
@@ -116,7 +116,7 @@ func (d *DefaultConnectionPool) Close() {
 	d.mutex.Unlock()
 }
 
-func initializeConnections(options Options, initialize func() (Connection, error)) <-chan connectionResponse  {
+func initializeConnections(options Options, initialize func() (Connection, error)) <-chan connectionResponse {
 	// Create connection channel
 	c := make(chan connectionResponse, options.NumConnections)
 	// Initialize connections
@@ -151,7 +151,7 @@ func waitForConnection(pool *DefaultConnectionPool, cancel chan int, response ch
 	for {
 		select {
 		// If cancel channel received signal exit iteration
-		case <- cancel:
+		case <-cancel:
 			exit = true
 		// If no receive operation is available on channel,
 		// attempt to get connection from pool

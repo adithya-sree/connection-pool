@@ -27,13 +27,13 @@ type (
 		Close() error
 	}
 
-	// Pool options
+	// Options Pool options
 	Options struct {
 		ConnectionWaitTimeout int
 		NumConnections        int
 	}
 
-	// Implementation of ConnectionPool
+	// DefaultConnectionPool Implementation of ConnectionPool
 	DefaultConnectionPool struct {
 		mutex                 sync.Mutex
 		connectionPool        []Connection
@@ -46,20 +46,21 @@ type (
 	}
 )
 
-// Initializes the connection pool
+// InitializeConnectionPool Initializes the connection pool
 func InitializeConnectionPool(options Options, initialize func() (Connection, error)) (ConnectionPool, error) {
 	var pool []Connection
 	// Get connection channel
 	c := initializeConnections(options, initialize)
 	// Initialize all connections
 	for i := 0; i < options.NumConnections; i++ {
-		if resp := <-c; resp.error != nil {
-			// Return error if unable to initialize
+		// Wait for connection
+		resp := <-c
+		// Return error if unable to initialize
+		if resp.error != nil {
 			return nil, resp.error
-		} else {
-			// Append connection to pool
-			pool = append(pool, resp.connection)
 		}
+		// Append connection to pool
+		pool = append(pool, resp.connection)
 	}
 	// Return connection pool
 	return &DefaultConnectionPool{
@@ -69,7 +70,7 @@ func InitializeConnectionPool(options Options, initialize func() (Connection, er
 	}, nil
 }
 
-// Gets a single connection from the pool
+// GetConnection Gets a single connection from the pool
 func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	// Default Timeout
 	timer := time.NewTimer(time.Duration(d.connectionWaitTimeout) * time.Millisecond)
@@ -87,7 +88,7 @@ func (d *DefaultConnectionPool) GetConnection() (Connection, error) {
 	}
 }
 
-// Returns a connection to the pool
+// ReturnConnection Returns a connection to the pool
 func (d *DefaultConnectionPool) ReturnConnection(connection Connection) {
 	// Lock Mutex
 	d.mutex.Lock()
@@ -97,12 +98,12 @@ func (d *DefaultConnectionPool) ReturnConnection(connection Connection) {
 	d.mutex.Unlock()
 }
 
-// Returns the current pool size
+// GetConnectionPoolSize Returns the current pool size
 func (d *DefaultConnectionPool) GetConnectionPoolSize() int {
 	return len(d.connectionPool)
 }
 
-// Closes all connections in the pool
+// Close Closes all connections in the pool
 func (d *DefaultConnectionPool) Close() {
 	// Lock Mutex
 	d.mutex.Lock()
